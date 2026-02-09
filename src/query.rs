@@ -2,7 +2,7 @@ use async_graphql::{Context, Object};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{dbmetrics, models::{Artist,ArtistRow}};
+use crate::{dbmetrics, models::{Artist,ArtistRow, Release,ReleaseRow}};
 
 pub struct QueryRoot;
 
@@ -28,5 +28,70 @@ impl QueryRoot{
             id: r.gid.to_string(),
             name: r.name
         }))
+    }
+
+    async fn artists(&self,ctx:&Context<'_>,ids: Vec<String>) -> async_graphql::Result<Vec<Artist>>{
+        dbmetrics::q();
+        let pool = ctx.data::<PgPool>()?;
+        let uuids: Result<Vec<Uuid>, uuid::Error> = ids.into_iter().map(|r| Uuid::parse_str(&r)).collect();
+
+        let row: Vec<ArtistRow> = sqlx::query_as::<_,ArtistRow>(
+            r#"
+            SELECT 
+                a.gid, 
+                a.name
+            FROM artist a
+            WHERE a.gid = ANY($1)
+            "#
+        ).bind(uuids?).fetch_all(pool).await?;
+
+        Ok(row.into_iter().map(|r| Artist{
+            id: r.gid.to_string(),
+            name: r.name
+        }).collect())
+    }
+
+    async fn release(&self,ctx:&Context<'_>,id:String) -> async_graphql::Result<Option<Release>>{
+        dbmetrics::q();
+        let pool = ctx.data::<PgPool>()?;
+        let uuid = Uuid::parse_str(&id)?;
+
+        let row = sqlx::query_as::<_,ReleaseRow>(
+            r#"
+            SELECT 
+                r.gid,
+                r.name
+                FROM release r
+                WHERE r.gid=$1
+            "#
+        ).bind(uuid).fetch_optional(pool).await?;
+
+        Ok(row.map(|r| Release { gid: r.gid.to_string(), name: r.name }))
+    }
+
+    async fn searchArtist(&self, ctx:&Context<'_>,name:String, limit: Option<i32>, offset: Option<i32>) -> async_graphql::Result<Vec<Artist>>{
+        dbmetrics::q();
+        let pool = ctx.data::<PgPool>()?;
+        
+        let limit = limit.unwrap_or(20).min(100);
+        let offset = offset.unwrap_or(0);
+
+        let pattern = format!("%{}%", name);
+
+        let rows = sqlx::query_as::<_,ArtistRow>(
+            r#"
+            SELECT
+                a.gid,
+                a.name
+            FROM artist a
+            WHERE a.name ILIKE $1
+            LIMIT $2 OFFSET $3
+            "#
+        ).bind(&pattern).bind(&limit).bind(&offset).fetch_all(pool).await?;
+
+        Ok(rows.into_iter().map(|r| Artist{
+            id: r.gid.to_string(),
+            name:r.name
+        }).collect())
     }
 }

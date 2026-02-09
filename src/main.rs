@@ -29,7 +29,7 @@ async fn main(){
 
     let app = Router::new().route_service("/gql", GraphQL::new(schema)).layer(middleware::from_fn(query_counter_middleware));
 
-    println!("GraphiQL IDE: http://localhost:8000/graphql");
+    println!("GraphiQL IDE: http://localhost:8000/gql");
 
     let listener = TcpListener::bind("0.0.0.0:8000").await.unwrap();
 
