@@ -7,10 +7,14 @@ edition = "2021"
 # Upgrade to 0.8 to match async-graphql-axum
 axum = "0.8"
 
-async-graphql = { version = "7.0", features = ["uuid", "chrono"] }
+async-graphql = { version = "7.0", features = ["uuid", "chrono", "dataloader"] }
 async-graphql-axum = "7.0"
 tokio = { version = "1.0", features = ["full"] }
 sqlx = { version = "0.7", features = ["runtime-tokio", "tls-native-tls", "postgres", "uuid", "time"] }
 uuid = { version = "1.0", features = ["serde", "v4"] }
 serde = { version = "1.0", features = ["derive"] }
+async-trait = "0.1.89"
+anyhow = "1.0.101"
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+serde_json = "1.0"
 
