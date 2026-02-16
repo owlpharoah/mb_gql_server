@@ -24,9 +24,7 @@ impl Loader<Uuid> for ArtistByReleaseLoader {
         let keys = keys.to_vec();
         let pool = self.pool.clone();
         
-        async move {
-            crate::dbmetrics::q();
-            
+        async move {            
             let rows = sqlx::query_as::<_, (Uuid, Uuid, String)>(
                 r#"
                 SELECT

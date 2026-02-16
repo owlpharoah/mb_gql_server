@@ -24,19 +24,14 @@ pub fn qr() -> (usize, u128) {
         .unwrap_or(0);
     
     
-    let dataloader_status = std::env::var("USE_DATALOADER")
-        .unwrap_or_else(|_| "true".to_string());
-    let status = if dataloader_status == "true" { "✅ ENABLED " } else { "❌ DISABLED" };
-    
     println!("\n┌────────────────────────────────────────┐");
     println!("│  📊 GraphQL Request Metrics            │");
     println!("├────────────────────────────────────────┤");
     println!("│  Total DB Queries: {:>4}               │", count);
     println!("│  Request Duration: {:>4}ms             │", elapsed);
     if count > 0 {
-        println!("│  Avg per query:    {:>4}ms             │", elapsed / count as u128);
+        println!("│  Avg per query:    {:>4}ms         │", elapsed / count as u128);
     }
-    println!("│  DataLoader:       {}         │", status);
     println!("└────────────────────────────────────────┘\n");
     
     (count, elapsed)

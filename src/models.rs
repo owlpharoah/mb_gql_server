@@ -1,7 +1,6 @@
 use async_graphql::{ComplexObject, SimpleObject, Context, dataloader::DataLoader};
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
-use std::env;
 use serde::{Serialize, Deserialize};
 
 use crate::loader::ArtistByReleaseLoader;  
@@ -74,40 +73,15 @@ impl Artist{
 impl Release{
     #[graphql(complexity = "5 * child_complexity")]
     async fn artist(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<Artist>>{
-        //check if dataloader to be used
-        if env::var("USE_DATALOADER").unwrap_or_else(|_| "true".to_string()) == "true" {
-            //with dataloader
-            let loader = ctx.data::<DataLoader<ArtistByReleaseLoader>>()?;
-            let release_gid = Uuid::parse_str(&self.gid)?;
-            
-            let artists = loader
-                .load_one(release_gid)
-                .await?
-                .unwrap_or_default();
-            
-            Ok(artists)
-        } else {
-            // without dataloader
-            crate::dbmetrics::q();
-            let pool = ctx.data::<PgPool>()?;
-            let rows = sqlx::query_as::<_,ArtistRow>(
-                r#"
-                SELECT
-                    a.gid,
-                    a.name
-                FROM release r
-                JOIN artist_credit_name acn
-                    ON r.artist_credit = acn.artist_credit
-                JOIN artist a
-                    ON acn.artist = a.id
-                WHERE r.gid = $1;
-                "#
-            ).bind(Uuid::parse_str(&self.gid)?).fetch_all(pool).await?;
-
-            Ok(rows.into_iter().map(|r| Artist{
-                id: r.gid.to_string(),
-                name:r.name
-            }).collect())
-        }
+        let loader = ctx.data::<DataLoader<ArtistByReleaseLoader>>()?;
+        let release_gid = Uuid::parse_str(&self.gid)?;
+        
+        let artists = loader
+            .load_one(release_gid)
+            .await?
+            .unwrap_or_default();
+        
+        Ok(artists)
+        
     }
 }
