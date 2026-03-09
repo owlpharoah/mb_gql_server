@@ -32,7 +32,7 @@ pub struct RecordingRow {
     pub length: Option<i32>,
 }
 
-/--------------------
+//--------------------
 
 #[derive(SimpleObject, Clone, Serialize, Deserialize)]
 #[graphql(complex)]
