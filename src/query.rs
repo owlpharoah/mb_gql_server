@@ -2,113 +2,106 @@ use async_graphql::{Context, Object};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{models::{Artist,ArtistRow, Release,ReleaseRow}};
+use crate::models::{
+    Artist, ArtistRow, Recording, RecordingRow, Release, ReleaseGroup, ReleaseGroupRow, ReleaseRow,
+};
 
 pub struct QueryRoot;
 
-
 #[Object]
-impl QueryRoot{
-    async fn artist(&self,ctx:&Context<'_>,id: String) -> async_graphql::Result<Option<Artist>>{
-        
+impl QueryRoot {
+    async fn artist(
+        &self,
+        ctx: &Context<'_>,
+        gid: String,
+    ) -> async_graphql::Result<Option<Artist>> {
         let pool = ctx.data::<PgPool>()?;
-        let uuid = Uuid::parse_str(&id)?;
+        let uuid = Uuid::parse_str(&gid)?;
 
-        let row: Option<ArtistRow> = sqlx::query_as::<_,ArtistRow>(
-            r#"
-            SELECT 
-                a.gid, 
-                a.name
-            FROM artist a
-            WHERE a.gid = $1
-            "#
-        ).bind(uuid).fetch_optional(pool).await?;
+        let row = sqlx::query_as::<_, ArtistRow>(
+            "SELECT id, gid, name, sort_name
+            FROM artist
+            WHERE gid = $1",
+        )
+        .bind(uuid)
+        .fetch_optional(pool)
+        .await?;
 
-        if let Some(r) = row {
-            let artist = Artist {
-                id: r.gid.to_string(),
-                name: r.name,
-            };
-            Ok(Some(artist))
-        } else {
-            Ok(None)
-        }
+        Ok(row.map(|r| Artist {
+            gid: r.gid,
+            name: r.name,
+            sort_name: r.sort_name,
+            id: r.id,
+        }))
     }
 
-    async fn artists(&self,ctx:&Context<'_>,ids: Vec<String>) -> async_graphql::Result<Vec<Artist>>{
-        if ids.len() > 1000 {
-            return Err("Too many IDs".into());
-        }
-
+    async fn release_group(
+        &self,
+        ctx: &Context<'_>,
+        gid: String,
+    ) -> async_graphql::Result<Option<ReleaseGroup>> {
         let pool = ctx.data::<PgPool>()?;
-        let uuids: Result<Vec<Uuid>, uuid::Error> = ids.into_iter().map(|r| Uuid::parse_str(&r)).collect();
+        let uuid = Uuid::parse_str(&gid)?;
 
-        let row: Vec<ArtistRow> = sqlx::query_as::<_,ArtistRow>(
-            r#"
-            SELECT 
-                a.gid, 
-                a.name
-            FROM artist a
-            WHERE a.gid = ANY($1)
-            "#
-        ).bind(uuids?).fetch_all(pool).await?;
+        let row = sqlx::query_as::<_, ReleaseGroupRow>(
+            "SELECT id, gid, name
+            FROM release_group
+            WHERE gid = $1",
+        )
+        .bind(uuid)
+        .fetch_optional(pool)
+        .await?;
 
-        Ok(row.into_iter().map(|r| Artist{
-            id: r.gid.to_string(),
-            name: r.name
-        }).collect())
+        Ok(row.map(|r| ReleaseGroup {
+            gid: r.gid,
+            name: r.name,
+            id: r.id,
+        }))
     }
 
-    async fn release(&self,ctx:&Context<'_>,id:String) -> async_graphql::Result<Option<Release>>{
-        
-
+    async fn release(
+        &self,
+        ctx: &Context<'_>,
+        gid: String,
+    ) -> async_graphql::Result<Option<Release>> {
         let pool = ctx.data::<PgPool>()?;
-        let uuid = Uuid::parse_str(&id)?;
+        let uuid = Uuid::parse_str(&gid)?;
 
-        let row = sqlx::query_as::<_,ReleaseRow>(
-            r#"
-            SELECT 
-                r.gid,
-                r.name
-                FROM release r
-                WHERE r.gid=$1
-            "#
-        ).bind(uuid).fetch_optional(pool).await?;
+        let row =
+            sqlx::query_as::<_, ReleaseRow>(
+                "SELECT id, gid, name
+                FROM release
+                WHERE gid = $1"
+            ).bind(uuid).fetch_optional(pool).await?;
 
-        if let Some(r) = row {
-            let release = Release {
-                gid: r.gid.to_string(),
-                name: r.name,
-            };
-            Ok(Some(release))
-        } else {
-            Ok(None)
-        }
+        Ok(row.map(|r| Release {
+            gid: r.gid,
+            name: r.name,
+            id: r.id,
+        }))
     }
 
-    async fn search_artist(&self, ctx:&Context<'_>,name:String, limit: Option<i32>, offset: Option<i32>) -> async_graphql::Result<Vec<Artist>>{
-
+    async fn recording(
+        &self,
+        ctx: &Context<'_>,
+        gid: String,
+    ) -> async_graphql::Result<Option<Recording>> {
         let pool = ctx.data::<PgPool>()?;
-        
-        let limit = limit.unwrap_or(20).min(100);
-        let offset = offset.unwrap_or(0);
+        let uuid = Uuid::parse_str(&gid)?;
 
-        let pattern = format!("%{}%", name);
+        let row = sqlx::query_as::<_, RecordingRow>(
+            "SELECT gid, name, length
+            FROM recording
+            WHERE gid = $1",
+        )
+        .bind(uuid)
+        .fetch_optional(pool)
+        .await?;
 
-        let rows = sqlx::query_as::<_,ArtistRow>(
-            r#"
-            SELECT
-                a.gid,
-                a.name
-            FROM artist a
-            WHERE a.name ILIKE $1
-            LIMIT $2 OFFSET $3
-            "#
-        ).bind(&pattern).bind(&limit).bind(&offset).fetch_all(pool).await?;
-
-        Ok(rows.into_iter().map(|r| Artist{
-            id: r.gid.to_string(),
-            name:r.name
-        }).collect())
+        Ok(row.map(|r| Recording {
+            gid: r.gid,
+            name: r.name,
+            length: r.length,
+        }))
     }
 }
